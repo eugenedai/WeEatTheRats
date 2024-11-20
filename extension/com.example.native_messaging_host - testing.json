@@ -1,0 +1,9 @@
+{
+    "name": "com.example.native_messaging_host",
+    "description": "Native messaging host example",
+    "path": "/home/kendai/workspace/WeEatTheRats/extension/com.example.native_app.py",
+    "type": "stdio",
+    "allowed_origins": [
+      "chrome-extension://gijgcdipddcilcfhanhimhpccgjljogb/"
+    ]
+  }
