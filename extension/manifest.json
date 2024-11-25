@@ -4,7 +4,7 @@
     "version": "1.0",
     "description": "An example Chrome extension with content script",
     "permissions": [
-      "activeTab"
+      "storage", "tabs", "scripting", "activeTab", "sidePanel", "nativeMessaging"
     ],
     "background": {
       "service_worker": "background.js"
@@ -12,11 +12,14 @@
     "content_scripts": [
       {
         "matches": ["<all_urls>"],
-        "js": ["content.js"]
+        "js": ["content.js", "get_links.js"]
       }
     ],
     "action": {
       "default_popup": "popup.html"
-    }
+    },
+    "host_permissions": [
+      "<all_urls>"                 
+    ]
   }
   

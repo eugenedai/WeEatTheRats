@@ -1,58 +1,149 @@
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === "signal_from_popup") {
-    console.log("Received message:", request.action);
-    sendResponse({ response: "Hello from background!" });
+const hostName = "com.rats.host";
+let port = null;
+let lastVisibleLinks;
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("background message", message);
+  switch (message.type) {
+    case "LOG":
+      const logStyle =
+        "background: #a0a0a0; color: #000; padding: 2px 5px; border-radius: 3px;";
+      console.log(`%c[content.js] ${message.data.message}`, logStyle);
+      // console.log(message.data.message);
+      break;
+    case "linksUpdate": {
+      lastVisibleLinks = message.links;
+      console.log("Updated visible links:", lastVisibleLinks);
+      break;
+    }
   }
 });
 
+// Helper function to extract domain from URL
+function extractDomain(url) {
+  let domain;
+  try {
+    domain = new URL(url).hostname;
+  } catch (error) {
+    console.error("Invalid URL:", url);
+    domain = "";
+  }
+  return domain;
+}
 
-// chrome.tabs.sendMessage(tabId, {
-//     action: 'NAVIGATE_TO_LINK',
-//     linkIndex: 5
-// }, response => {
-//     console.log('Navigation result:', response);
-// });
+function sendNativeMessage(message) {
+  console.log("Send native, ", message);
+  const messageToSend = message.payload;
+  if (port) {
+    port.postMessage(messageToSend);
+  } else {
+    console.error("Native messaging port is not connected");
+  }
+}
 
+function connectNativeHost() {
+  try {
+    port = chrome.runtime.connectNative(hostName);
 
-// Background script (background.js)
-// chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-//   console.log('onUpdated', tabId);
-//   // Wait for the page to finish loading
-//   if (changeInfo.status === 'complete') {
-//       console.log('onUpdated completed');
-//       // Set a timer to send message after 30 seconds
-//       setTimeout(() => {
-//           // Prepare the navigation message
-//           const message = {
-//               action: 'NAVIGATE_TO_LINK',
-//               linkIndex: 10,
-//               timestamp: Date.now(),
-//               metadata: {
-//                   source: 'background_timer',
-//                   delaySeconds: 30
-//               }
-//           };
+    port.onMessage.addListener((response) => {
+      console.log("Received response from native host:", response);
 
-//           // Send message to content script
-//           chrome.tabs.sendMessage(tabId, message, (response) => {
-//               // Check if message was successfully processed
-//               if (chrome.runtime.lastError) {
-//                   console.error('Error sending message:', chrome.runtime.lastError);
-//                   return;
-//               }
+      if (response.type === "hid_cmd") {
+        // Handle the retrieved credentials
+        handleHidCmd(response.cmd_id, response.parameter);
+      }
+    });
 
-//               // Log the response from content script
-//               if (response) {
-//                   if (response.success) {
-//                       console.log('Navigation successful:', response.data);
-//                   } else {
-//                       console.warn('Navigation failed:', response.error);
-//                   }
-//               } else {
-//                   console.warn('No response from content script');
-//               }
-//           });
-//       }, 30000); // 30 seconds
-//   }
-// });
+    port.onDisconnect.addListener(() => {
+      console.log("Native host has exited. Attempting to reconnect...");
+      port = null;
+      setTimeout(connectNativeHost, 1000); // Attempt to reconnect after 1 second
+    });
+  } catch (e) {
+    console.error("Connection error:", e, chrome.runtime.lastError);
+  }
+}
 
+function handleHidCmd(cmd, parameter) {
+  // Check if username and password are valid (non-empty strings)
+  console.log("handleHidCmd", cmd);
+  if (cmd == "click") {
+    console.log("Received  input:", parameter);
+
+    const matchedLink = findHrefByNumber(lastVisibleLinks, parameter);
+
+    if (matchedLink) {
+      console.log("Navigating to:", matchedLink.url);
+      // Navigate the current tab to the matched URL
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (tabs[0]) {
+          chrome.tabs.update(tabs[0].id, { url: matchedLink.url });
+        }
+      });
+    } else {
+      console.log("Did not find match link");
+    }
+  } else if (cmd == "back") {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      if (tabs[0]) {
+        chrome.tabs.goBack(tabs[0].id);
+      }
+    });
+  } else if (cmd == "forward") {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      if (tabs[0]) {
+        chrome.tabs.goForward(tabs[0].id);
+      }
+    });
+  } else  if (cmd == "down") {
+    console.log("Received  input:", parameter);
+
+    const numericTarget = Number(parameter);
+    scrollPage(numericTarget);
+  } else  if (cmd == "up") {
+    console.log("Received  input:", parameter);
+
+    const numericTarget = Number(parameter);
+    scrollPage(-numericTarget);
+  } else if (cmd == "focus") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        const tab = tabs[0];
+        chrome.windows.update(tab.windowId, { focused: true }, () => {
+          chrome.tabs.update(tab.id, { highlighted: true });
+        });
+      }
+    });
+  }
+}
+
+// Initialize native messaging connection
+connectNativeHost();
+
+function findHrefByNumber(visibleLinks, targetNumber) {
+  const numericTarget = Number(targetNumber);
+  for (const link of visibleLinks) {
+    if (link.number === numericTarget) {
+      console.log("found", link);
+      return link;
+    }
+  }
+  return null;
+}
+
+function scrollPage(amount) {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    if (tabs[0]) {
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: (scrollAmount) => {
+          window.scrollBy({
+            top: scrollAmount,
+            behavior: "smooth",
+          });
+        },
+        args: [amount],
+      });
+    }
+  });
+}
