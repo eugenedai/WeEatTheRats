@@ -272,6 +272,7 @@ function setupLinkObserver() {
           chrome.runtime.sendMessage({
             type: "linksUpdate",
             links: newLinks,
+            url: window.location.href
           });
         }
       }, 200); // Batch changes within 100ms window
@@ -300,6 +301,7 @@ function setupLinkObserver() {
     chrome.runtime.sendMessage({
       type: "linksUpdate",
       links: initialLinks,
+      url: window.location.href
     });
   }
 
@@ -329,6 +331,7 @@ function setupLinkObserver() {
         chrome.runtime.sendMessage({
           type: "linksUpdate",
           links: newLinks,
+          url: window.location.href
         });
       }
     }, 100);
@@ -356,5 +359,9 @@ function initializeLinkTracking() {
   window.addEventListener("beforeunload", cleanup);
 }
 
-// Begin tracking when script loads
-initializeLinkTracking();
+// Check if we should start tracking when content script loads
+chrome.runtime.sendMessage({ type: "INIT_CONTENT_SCRIPT" }, response => {
+    if (response && response.shouldTrack) {
+      initializeLinkTracking();
+    }
+  });

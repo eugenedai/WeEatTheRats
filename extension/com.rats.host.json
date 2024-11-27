@@ -1,7 +1,7 @@
 {
   "name": "com.rats.host",
   "description": "Chrome Native Messaging API Example Host",
-  "path": "~/workspaces/WeEatTheRats/bin/host_proxy",
+  "path": "/home/kendai/workspace/WeEatTheRats/bin/host_proxy",
   "type": "stdio",
-  "allowed_origins": ["chrome-extension://fglcobdgmgapmelgkeejoobnpbblnfbf/"]
+  "allowed_origins": ["chrome-extension://gijgcdipddcilcfhanhimhpccgjljogb/"]
 }
