@@ -254,8 +254,61 @@ function handleHidCmd(cmd, parameter) {
         }
       });
     });
+  } else if (cmd == "righttab") {
+    chrome.windows.getCurrent((currentWindow) => {
+      chrome.tabs.query({ windowId: currentWindow.id }, (tabs) => {
+        // Find the currently active tab
+        const activeTabIndex = tabs.findIndex(tab => tab.active);
+        console.log("current tab", activeTabIndex)
+        // Move to the next tab, wrapping around to the first tab if at the end
+        const nextTabIndex = (activeTabIndex + 1) % tabs.length;
+        console.log("next tab", nextTabIndex)
+        chrome.tabs.update(tabs[nextTabIndex].id, { active: true });
+        console.log("moved")
+      });
+    });
+  } else if (cmd == "lefttab") {
+    // Get the current window
+    chrome.windows.getCurrent((currentWindow) => {
+      chrome.tabs.query({ windowId: currentWindow.id }, (tabs) => {
+        // Find the currently active tab
+        const activeTabIndex = tabs.findIndex(tab => tab.active);
+        
+        // Move to the next tab, wrapping around to the first tab if at the end
+        const nextTabIndex = (activeTabIndex - 1) % tabs.length;
+        chrome.tabs.update(tabs[nextTabIndex].id, { active: true });
+      });
+    });
+  } else if (cmd == "newtab") {
+    chrome.tabs.create({});
+  } else if (cmd == "closetab") {
+    // Get the current window
+    chrome.windows.getCurrent((currentWindow) => {
+      // Query the active tab in the current window
+      chrome.tabs.query({ active: true, windowId: currentWindow.id }, (tabs) => {
+        // Close the active tab
+        if (tabs[0]) {
+          chrome.tabs.remove(tabs[0].id);
+        }
+      });
+    });
+  } else if (cmd === "bookmark") {
+    // Get the current active tab
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+      
+      // Create a bookmark
+      chrome.bookmarks.create({
+        title: currentTab.title,
+        url: currentTab.url
+      }, (newBookmark) => {
+        // Optional: You could add a notification or console log
+        console.log('Bookmarked:', newBookmark);
+      });
+    });
   }
 }
+
 
 // Initialize native messaging connection
 connectNativeHost();
